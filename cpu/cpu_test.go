@@ -1,6 +1,9 @@
 package cpu
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -206,7 +209,7 @@ func TestRegistersSetBC(t *testing.T) {
 				c: (0xA62D & 0x00FF),
 				d: 0,
 				e: 0,
-				f: 0,
+				f: FlagsRegister{},
 				h: 0,
 				l: 0,
 			},
@@ -225,7 +228,7 @@ func TestRegistersSetBC(t *testing.T) {
 				c: 0xFF,
 				d: 0,
 				e: 0,
-				f: 0,
+				f: FlagsRegister{},
 				h: 0,
 				l: 0,
 			},
@@ -266,7 +269,7 @@ func TestRegistersGetBC(t *testing.T) {
 				c: (0xA62D & 0x00FF),
 				d: 0,
 				e: 0,
-				f: 0,
+				f: FlagsRegister{},
 				h: 0,
 				l: 0,
 			},
@@ -285,7 +288,7 @@ func TestRegistersGetBC(t *testing.T) {
 				c: 0xFF,
 				d: 0,
 				e: 0,
-				f: 0,
+				f: FlagsRegister{},
 				h: 0,
 				l: 0,
 			},
@@ -299,6 +302,173 @@ func TestRegistersGetBC(t *testing.T) {
 		} else {
 			t.Logf("ok: %s", unit_test.title)
 		}
+	}
+	// 10100110
+	// 00101101
+}
+
+func CompareFlagsRegister(left FlagsRegister, right FlagsRegister) (err error) {
+
+	var error_msg strings.Builder
+
+	if left.zero != right.zero {
+		error_msg.WriteString(fmt.Sprintf("the zero flags are not the same : %v != %v \n", left.zero, right.zero))
+	}
+	if left.substract != right.substract {
+		error_msg.WriteString(fmt.Sprintf("the substract flags are not the same : %v != %v \n", left.substract, right.substract))
+	}
+	if left.half_carry != right.half_carry {
+		error_msg.WriteString(fmt.Sprintf("the half_carry flags are not the same : %v != %v \n", left.half_carry, right.half_carry))
+	}
+	if left.carry != right.carry {
+		error_msg.WriteString(fmt.Sprintf("the carry flags are not the same : %v != %v \n", left.carry, right.carry))
+	}
+
+	if error_msg.Len() > 0 {
+		err = errors.New(error_msg.String())
+	}
+
+	return err
+}
+
+func TestCPUAdd(t *testing.T) {
+	type test struct {
+		title        string
+		sum_result   reg
+		overflew     bool
+		cpu          CPU
+		flags_result FlagsRegister
+	}
+
+	tests := []test{
+		{
+			title:      "simple addition",
+			sum_result: 3,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: false,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(2),
+					// 00001010
+					// 00011001
+					c: reg(1),
+				},
+			},
+		},
+		{
+			title:      "half carry addition",
+			sum_result: 35,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(10),
+					// 00001010
+					// 00011001
+					c: reg(25),
+				},
+			},
+		},
+		{
+			title:      "zero addition",
+			sum_result: 0,
+			flags_result: FlagsRegister{
+				zero:       true,
+				substract:  false,
+				half_carry: false,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(0),
+					// 00001010
+					// 00011001
+					c: reg(0),
+				},
+			},
+		},
+		{
+			title:      "overflow addition",
+			sum_result: 1,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: true,
+				carry:      true,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(255),
+					// 00001010
+					// 00011001
+					c: reg(2),
+				},
+			},
+		},
+		{
+			title:      "overflow addition to zero",
+			sum_result: 0,
+			flags_result: FlagsRegister{
+				zero:       true,
+				substract:  false,
+				half_carry: true,
+				carry:      true,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(255),
+					// 00001010
+					// 00011001
+					c: reg(1),
+				},
+			},
+		},
+	}
+
+	for _, unit_test := range tests {
+		// result :=
+		unit_test.cpu.execute(ADD, C)
+		success := true
+		if unit_test.cpu.regs.a != unit_test.sum_result {
+			t.Errorf(
+				"failed : %s expected : %v got : %v",
+				unit_test.title,
+				unit_test.sum_result,
+				unit_test.cpu.regs.a,
+			)
+			success = false
+		}
+
+		flags_comp := CompareFlagsRegister(unit_test.cpu.regs.f, unit_test.flags_result)
+
+		if flags_comp != nil {
+			t.Errorf(
+				"failed : %s expected : %v got : %v\n",
+				unit_test.title,
+				unit_test.flags_result,
+				unit_test.cpu.regs.f,
+			)
+			t.Error(flags_comp.Error())
+			success = false
+		}
+
+		if success {
+			t.Logf("ok: %s", unit_test.title)
+		}
+
+		// if result != unit_test.expected {
+		// 	t.Errorf("failed : %s expected : %v got : %v", unit_test.title, unit_test.expected, result)
+		// } else {
+		// 	t.Logf("ok: %s", unit_test.title)
+		// }
 	}
 	// 10100110
 	// 00101101

@@ -3,18 +3,94 @@ package cpu
 import "fmt"
 
 // la funcion de toBit la pude hacer porque sabia que las expressiones finales de los if statements son a lo que terminan evaluandose, por lo que probablemente haya mas cosas que no tenga la menor idea asi que tendre que buscar la referencia de lo que significa en internet o preguntandole a alguient
+type Instruction uint8
+
+const (
+	ADD Instruction = iota
+	ADDHL
+)
+
+type CPU struct {
+	regs Registers
+}
+
+func (cpu *CPU) execute(instruction Instruction, target ArithmeticTarget) {
+	switch instruction {
+	case ADDHL:
+		fallthrough
+	case ADD:
+		{
+			cpu.add(target)
+		}
+	}
+}
+
+// half_carry doc
+// a     : 0111
+// value : 1111
+//
+//	10110 > 1111 is half carry, else, there is not half carry
+func (cpu *CPU) add(target ArithmeticTarget) {
+	switch target {
+	case C:
+		{
+			value := cpu.regs.c
+			new_value, did_overflow := cpu.regs.a.overflowingAdd(value)
+			cpu.regs.f.zero = new_value == 0
+			cpu.regs.f.substract = false
+			cpu.regs.f.half_carry = (cpu.regs.a&0xF)+(value&0xF) > 0xF
+			cpu.regs.f.carry = did_overflow
+			cpu.regs.a = new_value
+		}
+	case L:
+		{
+			value := cpu.regs.l
+			new_value, did_overflow := cpu.regs.h.overflowingAdd(value)
+			cpu.regs.f.zero = new_value == 0
+			cpu.regs.f.substract = false
+			cpu.regs.f.half_carry = (cpu.regs.a&0xF)+(value&0xF) > 0xF
+			cpu.regs.f.carry = did_overflow
+			cpu.regs.h = new_value
+		}
+	default:
+		{
+			panic(fmt.Sprintf("[ERROR] not implemented: %v", target))
+		}
+	}
+}
+
+type ArithmeticTarget uint8
+
+const (
+	A ArithmeticTarget = iota
+	B
+	C
+	D
+	E
+	H
+	L
+)
 
 type reg uint8
 
 type Registers struct {
-	a uint8
-	b uint8
-	c uint8
-	d uint8
-	e uint8
-	f uint8
-	h uint8
-	l uint8
+	a reg
+	b reg
+	c reg
+	d reg
+	e reg
+	f FlagsRegister
+	h reg
+	l reg
+}
+
+func (r *reg) overflowingAdd(b reg) (reg, bool) {
+	var overflow bool
+	result := (*r) + b
+	if result < (*r) {
+		overflow = true
+	}
+	return result, overflow
 }
 
 func (r *Registers) String() string {
@@ -25,11 +101,33 @@ func (r *Registers) String() string {
 			c: %d
 			d: %d
 			e: %d
-			f: %d
+			f: %v
 			h: %d
 			l: %d
 		]
 		`, r.a, r.b, r.c, r.d, r.e, r.f, r.h, r.l)
+}
+
+func (r *Registers) getBC() uint16 {
+	return uint16(r.b)<<8 | uint16(r.c)
+}
+
+func (r *Registers) setBC(value uint16) {
+	// [0101010101010101]
+	// [1111111100000000]
+	// [0101010100000000]
+	// [0000000001010101]
+	//
+	// [0101010101010101]
+	// [0000000011111111]
+
+	// full := ^uint16(0)
+	// b := uint8((value & full << 8) >> 8)
+	// c := uint8((value & full >> 8))
+	b := reg((value & 0xFF00) >> 8)
+	c := reg(value & 0xFF)
+	r.b = b
+	r.c = c
 }
 
 type FlagsRegister struct {
@@ -101,26 +199,4 @@ func toFlagReg(value uint8) FlagsRegister {
 
 	return flags
 
-}
-
-func (r *Registers) getBC() uint16 {
-	return uint16(r.b)<<8 | uint16(r.c)
-}
-
-func (r *Registers) setBC(value uint16) {
-	// [0101010101010101]
-	// [1111111100000000]
-	// [0101010100000000]
-	// [0000000001010101]
-	//
-	// [0101010101010101]
-	// [0000000011111111]
-
-	// full := ^uint16(0)
-	// b := uint8((value & full << 8) >> 8)
-	// c := uint8((value & full >> 8))
-	b := uint8((value & 0xFF00) >> 8)
-	c := uint8(value & 0xFF)
-	r.b = b
-	r.c = c
 }
