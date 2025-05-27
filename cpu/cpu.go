@@ -8,21 +8,21 @@ type Instruction uint8
 const (
 	ADD Instruction = iota
 	ADDHL
+	ADC
+	SUB
+	SBC
+	AND
+	OR
+	XOR
+	CP
+	INC
+	DEC
+	CCF
+	SCF
 )
 
 type CPU struct {
 	regs Registers
-}
-
-func (cpu *CPU) execute(instruction Instruction, target ArithmeticTarget) {
-	switch instruction {
-	case ADDHL:
-		fallthrough
-	case ADD:
-		{
-			cpu.add(target)
-		}
-	}
 }
 
 // half_carry doc
@@ -30,46 +30,6 @@ func (cpu *CPU) execute(instruction Instruction, target ArithmeticTarget) {
 // value : 1111
 //
 //	10110 > 1111 is half carry, else, there is not half carry
-func (cpu *CPU) add(target ArithmeticTarget) {
-	switch target {
-	case C:
-		{
-			value := cpu.regs.c
-			new_value, did_overflow := cpu.regs.a.overflowingAdd(value)
-			cpu.regs.f.zero = new_value == 0
-			cpu.regs.f.substract = false
-			cpu.regs.f.half_carry = (cpu.regs.a&0xF)+(value&0xF) > 0xF
-			cpu.regs.f.carry = did_overflow
-			cpu.regs.a = new_value
-		}
-	case L:
-		{
-			value := cpu.regs.l
-			new_value, did_overflow := cpu.regs.h.overflowingAdd(value)
-			cpu.regs.f.zero = new_value == 0
-			cpu.regs.f.substract = false
-			cpu.regs.f.half_carry = (cpu.regs.a&0xF)+(value&0xF) > 0xF
-			cpu.regs.f.carry = did_overflow
-			cpu.regs.h = new_value
-		}
-	default:
-		{
-			panic(fmt.Sprintf("[ERROR] not implemented: %v", target))
-		}
-	}
-}
-
-type ArithmeticTarget uint8
-
-const (
-	A ArithmeticTarget = iota
-	B
-	C
-	D
-	E
-	H
-	L
-)
 
 type reg uint8
 
@@ -88,6 +48,15 @@ func (r *reg) overflowingAdd(b reg) (reg, bool) {
 	var overflow bool
 	result := (*r) + b
 	if result < (*r) {
+		overflow = true
+	}
+	return result, overflow
+}
+
+func (r *reg) overflowingSub(b reg) (reg, bool) {
+	var overflow bool
+	result := (*r) - b
+	if result > (*r) {
 		overflow = true
 	}
 	return result, overflow

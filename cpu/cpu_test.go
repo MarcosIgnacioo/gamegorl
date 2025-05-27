@@ -332,12 +332,14 @@ func CompareFlagsRegister(left FlagsRegister, right FlagsRegister) (err error) {
 }
 
 func TestCPUAdd(t *testing.T) {
+
 	type test struct {
 		title        string
 		sum_result   reg
 		overflew     bool
 		cpu          CPU
 		flags_result FlagsRegister
+		target       ArithmeticTarget
 	}
 
 	tests := []test{
@@ -358,6 +360,7 @@ func TestCPUAdd(t *testing.T) {
 					c: reg(1),
 				},
 			},
+			target: C,
 		},
 		{
 			title:      "half carry addition",
@@ -376,6 +379,7 @@ func TestCPUAdd(t *testing.T) {
 					c: reg(25),
 				},
 			},
+			target: C,
 		},
 		{
 			title:      "zero addition",
@@ -394,6 +398,7 @@ func TestCPUAdd(t *testing.T) {
 					c: reg(0),
 				},
 			},
+			target: C,
 		},
 		{
 			title:      "overflow addition",
@@ -412,6 +417,7 @@ func TestCPUAdd(t *testing.T) {
 					c: reg(2),
 				},
 			},
+			target: C,
 		},
 		{
 			title:      "overflow addition to zero",
@@ -430,12 +436,126 @@ func TestCPUAdd(t *testing.T) {
 					c: reg(1),
 				},
 			},
+			target: C,
+		},
+		{
+			title:      "simple addition (A)",
+			sum_result: 48,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(24),
+					// 00001010
+					// 00011001
+				},
+			},
+			target: A,
+		},
+		{
+			title:      "simple addition (B)",
+			sum_result: 35,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(24),
+					// 00001010
+					// 00011001
+					b: reg(11),
+				},
+			},
+			target: B,
+		},
+		{
+			title:      "simple addition (D)",
+			sum_result: 35,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(24),
+					// 00001010
+					// 00011001
+					d: reg(11),
+				},
+			},
+			target: D,
+		},
+		{
+			title:      "simple addition (E)",
+			sum_result: 35,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(24),
+					// 00001010
+					// 00011001
+					e: reg(11),
+				},
+			},
+			target: E,
+		},
+		{
+			title:      "simple addition (H)",
+			sum_result: 35,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(24),
+					// 00001010
+					// 00011001
+					h: reg(11),
+				},
+			},
+			target: H,
+		},
+		{
+			title:      "simple addition (L)",
+			sum_result: 35,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(24),
+					// 00001010
+					// 00011001
+					l: reg(11),
+				},
+			},
+			target: L,
 		},
 	}
 
 	for _, unit_test := range tests {
 		// result :=
-		unit_test.cpu.execute(ADD, C)
+		unit_test.cpu.execute(ADD, unit_test.target)
 		success := true
 		if unit_test.cpu.regs.a != unit_test.sum_result {
 			t.Errorf(
@@ -469,6 +589,417 @@ func TestCPUAdd(t *testing.T) {
 		// } else {
 		// 	t.Logf("ok: %s", unit_test.title)
 		// }
+	}
+	// 10100110
+	// 00101101
+}
+
+func TestCPUADC(t *testing.T) {
+
+	type test struct {
+		title        string
+		sum_result   reg
+		overflew     bool
+		cpu          CPU
+		flags_result FlagsRegister
+		target       ArithmeticTarget
+	}
+
+	tests := []test{
+		{
+			title:      "overflow and then adding the carry",
+			sum_result: 2,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: true,
+				carry:      true,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(255),
+					// 00001010
+					// 00011001
+					c: reg(2),
+				},
+			},
+			target: C,
+		},
+		{
+			title:      "overflow and then adding the carry",
+			sum_result: 1,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: true,
+				carry:      true,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(255),
+					// 00001010
+					// 00011001
+					c: reg(1),
+				},
+			},
+			target: C,
+		},
+	}
+
+	for _, unit_test := range tests {
+		// t :=
+		unit_test.cpu.execute(ADC, unit_test.target)
+		success := true
+		if unit_test.cpu.regs.a != unit_test.sum_result {
+			t.Errorf(
+				"failed : %s expected : %v got : %v",
+				unit_test.title,
+				unit_test.sum_result,
+				unit_test.cpu.regs.a,
+			)
+			success = false
+		}
+
+		flags_comp := CompareFlagsRegister(unit_test.cpu.regs.f, unit_test.flags_result)
+
+		if flags_comp != nil {
+			t.Errorf(
+				"failed : %s expected : %v got : %v\n",
+				unit_test.title,
+				unit_test.flags_result,
+				unit_test.cpu.regs.f,
+			)
+			t.Error(flags_comp.Error())
+			success = false
+		}
+
+		if success {
+			t.Logf("ok: %s", unit_test.title)
+		}
+
+		// if result != unit_test.expected {
+		// 	t.Errorf("failed : %s expected : %v got : %v", unit_test.title, unit_test.expected, result)
+		// } else {
+		// 	t.Logf("ok: %s", unit_test.title)
+		// }
+	}
+	// 10100110
+	// 00101101
+}
+
+func TestCPUSUB(t *testing.T) {
+
+	type test struct {
+		instruction  Instruction
+		title        string
+		sub_result   reg
+		overflew     bool
+		cpu          CPU
+		flags_result FlagsRegister
+		target       ArithmeticTarget
+	}
+
+	tests := []test{
+		{
+			instruction: SUB,
+			title:       "simple substraction",
+			sub_result:  253,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  true,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(255),
+					// 00001010
+					// 00011001
+					c: reg(2),
+				},
+			},
+			target: C,
+		},
+		{
+			instruction: SBC,
+			title:       "simple substraction with carry",
+			sub_result:  250,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  true,
+				half_carry: false,
+				carry:      true,
+			},
+			cpu: CPU{
+				regs: Registers{
+					a: reg(0),
+					// 00001010
+					// 00011001
+					c: reg(5),
+				},
+			},
+			target: C,
+		},
+	}
+
+	for _, unit_test := range tests {
+		// t :=
+		unit_test.cpu.execute(unit_test.instruction, unit_test.target)
+		success := true
+		if unit_test.cpu.regs.a != unit_test.sub_result {
+			t.Errorf(
+				"failed : %s expected : %v got : %v",
+				unit_test.title,
+				unit_test.sub_result,
+				unit_test.cpu.regs.a,
+			)
+			success = false
+		}
+
+		flags_comp := CompareFlagsRegister(unit_test.cpu.regs.f, unit_test.flags_result)
+
+		if flags_comp != nil {
+			t.Errorf(
+				"failed : %s expected : %v got : %v\n",
+				unit_test.title,
+				unit_test.flags_result,
+				unit_test.cpu.regs.f,
+			)
+			t.Error(flags_comp.Error())
+			success = false
+		}
+
+		if success {
+			t.Logf("ok: %s", unit_test.title)
+		}
+	}
+	// 10100110
+	// 00101101
+}
+
+func TestBitWise(t *testing.T) {
+
+	type test struct {
+		instruction  Instruction
+		title        string
+		result       reg
+		overflew     bool
+		cpu          CPU
+		flags_result FlagsRegister
+		target       ArithmeticTarget
+	}
+
+	tests := []test{
+		{
+			instruction: AND,
+			title:       "simple and",
+			result:      24,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  true,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					//11001 25
+					//11000 24
+					a: reg(25),
+					// 00001010
+					// 00011001
+					c: reg(24),
+				},
+			},
+			target: C,
+		},
+		{
+			instruction: OR,
+			title:       "simple or",
+			result:      25,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  true,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					//11001 25
+					//11000 24
+					a: reg(25),
+					// 00001010
+					// 00011001
+					c: reg(24),
+				},
+			},
+			target: C,
+		},
+		{
+			instruction: XOR,
+			title:       "simple xor",
+			result:      1,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  true,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					//11001 25
+					//11000 24
+					//00001 1
+					a: reg(25),
+					// 00001010
+					// 00011001
+					c: reg(24),
+				},
+			},
+			target: C,
+		},
+		{
+			instruction: CP,
+			title:       "simple cmp",
+			result:      25,
+			flags_result: FlagsRegister{
+				zero:       true,
+				substract:  true,
+				half_carry: true,
+				carry:      false,
+			},
+			cpu: CPU{
+				regs: Registers{
+					//11001 25
+					//11000 24
+					//00001 1
+					a: reg(25),
+					// 00001010
+					// 00011001
+					c: reg(25),
+				},
+			},
+			target: C,
+		},
+		{
+			instruction: CP,
+			title:       "simple cmp2",
+			result:      25,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  true,
+				half_carry: false,
+				carry:      true,
+			},
+			cpu: CPU{
+				regs: Registers{
+					//11001 25
+					//11000 24
+					//00001 1
+					a: reg(25),
+					// 00001010
+					// 00011001
+					c: reg(34),
+				},
+			},
+			target: C,
+		},
+	}
+
+	for _, unit_test := range tests {
+		// t :=
+		unit_test.cpu.execute(unit_test.instruction, unit_test.target)
+		success := true
+		if unit_test.cpu.regs.a != unit_test.result {
+			t.Errorf(
+				"failed : %s expected : %v got : %v",
+				unit_test.title,
+				unit_test.result,
+				unit_test.cpu.regs.a,
+			)
+			success = false
+		}
+
+		flags_comp := CompareFlagsRegister(unit_test.cpu.regs.f, unit_test.flags_result)
+
+		if flags_comp != nil {
+			t.Errorf(
+				"failed : %s expected : %v got : %v\n",
+				unit_test.title,
+				unit_test.flags_result,
+				unit_test.cpu.regs.f,
+			)
+			t.Error(flags_comp.Error())
+			success = false
+		}
+
+		if success {
+			t.Logf("ok: %s", unit_test.title)
+		}
+	}
+	// 10100110
+	// 00101101
+}
+func TestUtilsInstructions(t *testing.T) {
+	type test struct {
+		instruction Instruction
+		title       string
+		expected    reg
+		result      *reg
+		overflew    bool
+		// cpu          CPU
+		flags_result FlagsRegister
+		target       ArithmeticTarget
+	}
+
+	cpu := CPU{}
+
+	tests := []test{
+		{
+			instruction: INC,
+			title:       "simple inc",
+			expected:    1,
+			result:      &cpu.regs.c,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: false,
+				carry:      false,
+			},
+			target: C,
+		},
+	}
+
+	for _, unit_test := range tests {
+		// t :=
+		cpu.execute(unit_test.instruction, unit_test.target)
+		success := true
+		if *unit_test.result != unit_test.expected {
+			t.Errorf(
+				"failed : %s expected : %v got : %v",
+				unit_test.title,
+				unit_test.expected,
+				*unit_test.result,
+			)
+			t.Log(cpu)
+			success = false
+		}
+
+		flags_comp := CompareFlagsRegister(cpu.regs.f, unit_test.flags_result)
+
+		if flags_comp != nil {
+			t.Errorf(
+				"failed : %s expected : %v got : %v\n",
+				unit_test.title,
+				unit_test.flags_result,
+				cpu.regs.f,
+			)
+			t.Error(flags_comp.Error())
+			success = false
+		}
+
+		if success {
+			t.Logf("ok: %s", unit_test.title)
+		}
 	}
 	// 10100110
 	// 00101101
