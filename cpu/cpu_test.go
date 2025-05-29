@@ -796,7 +796,7 @@ func TestBitWise(t *testing.T) {
 			result:      24,
 			flags_result: FlagsRegister{
 				zero:       false,
-				substract:  true,
+				substract:  false,
 				half_carry: true,
 				carry:      false,
 			},
@@ -818,7 +818,7 @@ func TestBitWise(t *testing.T) {
 			result:      25,
 			flags_result: FlagsRegister{
 				zero:       false,
-				substract:  true,
+				substract:  false,
 				half_carry: true,
 				carry:      false,
 			},
@@ -840,7 +840,7 @@ func TestBitWise(t *testing.T) {
 			result:      1,
 			flags_result: FlagsRegister{
 				zero:       false,
-				substract:  true,
+				substract:  false,
 				half_carry: true,
 				carry:      false,
 			},
@@ -951,7 +951,17 @@ func TestUtilsInstructions(t *testing.T) {
 		target       ArithmeticTarget
 	}
 
-	cpu := CPU{}
+	cpu := CPU{
+		regs: Registers{
+			a: 7,
+			b: 0,
+			c: 0,
+			d: 0,
+			e: 0,
+			h: 0,
+			l: 4,
+		},
+	}
 
 	tests := []test{
 		{
@@ -967,10 +977,204 @@ func TestUtilsInstructions(t *testing.T) {
 			},
 			target: C,
 		},
+		{
+			instruction: DEC,
+			title:       "simple dec",
+			expected:    0,
+			result:      &cpu.regs.c,
+			flags_result: FlagsRegister{
+				zero:       true,
+				substract:  true,
+				half_carry: false,
+				carry:      false,
+			},
+			target: C,
+		},
+		{
+			instruction: INC,
+			title:       "simple inc (L)",
+			expected:    5,
+			result:      &cpu.regs.l,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: false,
+				carry:      false,
+			},
+			target: L,
+		},
+		{
+			instruction: DEC,
+			title:       "simple dec (A)",
+			expected:    6,
+			result:      &cpu.regs.a,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  true,
+				half_carry: false,
+				carry:      false,
+			},
+			target: A,
+		},
+		{
+			instruction: CCF,
+			title:       "simple cff on",
+			expected:    6,
+			result:      &cpu.regs.a,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: false,
+				carry:      true,
+			},
+		},
+		{
+			instruction: CCF,
+			title:       "simple cff off",
+			expected:    6,
+			result:      &cpu.regs.a,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: false,
+				carry:      false,
+			},
+		},
+		{
+			instruction: SCF,
+			title:       "simple scf",
+			expected:    6,
+			result:      &cpu.regs.a,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: false,
+				carry:      true,
+			},
+		},
+		{
+			instruction: SCF,
+			title:       "simple scf 2",
+			expected:    6,
+			result:      &cpu.regs.a,
+			flags_result: FlagsRegister{
+				zero:       false,
+				substract:  false,
+				half_carry: false,
+				carry:      true,
+			},
+		},
 	}
 
 	for _, unit_test := range tests {
 		// t :=
+		cpu.execute(unit_test.instruction, unit_test.target)
+		success := true
+		if *unit_test.result != unit_test.expected {
+			t.Errorf(
+				"failed : %s expected : %v got : %v",
+				unit_test.title,
+				unit_test.expected,
+				*unit_test.result,
+			)
+			t.Log(cpu)
+			success = false
+		}
+
+		flags_comp := CompareFlagsRegister(cpu.regs.f, unit_test.flags_result)
+
+		if flags_comp != nil {
+			t.Errorf(
+				"failed : %s expected : %v got : %v\n",
+				unit_test.title,
+				unit_test.flags_result,
+				cpu.regs.f,
+			)
+			t.Error(flags_comp.Error())
+			success = false
+		}
+
+		if success {
+			t.Logf("ok: %s", unit_test.title)
+		}
+	}
+	// 10100110
+	// 00101101
+}
+
+type test struct {
+	instruction Instruction
+	title       string
+	expected    reg
+	result      *reg
+	regs        Registers
+	overflew    bool
+	// cpu          CPU
+	flags_result FlagsRegister
+	target       ArithmeticTarget
+}
+
+func (t *test) updateRegisters(cpu *CPU) {
+	cpu.regs = t.regs
+}
+
+func TestRegisterRotation(t *testing.T) {
+
+	cpu := CPU{}
+	// 101001100
+	// 10100110
+	tests := []test{
+		{
+			regs: Registers{
+				a: 76,
+				b: 0,
+				c: 0,
+				d: 0,
+				e: 0,
+				h: 0,
+				l: 0,
+				f: FlagsRegister{
+					carry: true,
+				},
+			},
+			instruction: RRA,
+			title:       "simple rra",
+			expected:    166,
+			result:      &cpu.regs.a,
+			flags_result: FlagsRegister{
+				carry: false,
+			},
+			target: A,
+		},
+		{
+			// 01010100
+			// 01010100
+			regs: Registers{
+				a: 84,
+				b: 0,
+				c: 0,
+				d: 0,
+				e: 0,
+				h: 0,
+				l: 0,
+				f: FlagsRegister{
+					carry: true,
+				},
+			},
+			instruction: RLA,
+			title:       "simple rla",
+			expected:    169,
+			result:      &cpu.regs.a,
+			flags_result: FlagsRegister{
+				carry: false,
+			},
+			target: A,
+		},
+	}
+
+	for _, unit_test := range tests {
+		// t :=
+		unit_test.updateRegisters(&cpu)
 		cpu.execute(unit_test.instruction, unit_test.target)
 		success := true
 		if *unit_test.result != unit_test.expected {
