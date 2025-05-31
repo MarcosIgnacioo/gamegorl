@@ -1,39 +1,50 @@
 package cpu
 
+import "fmt"
+
 const (
 	ADD Instruction = iota
 	ADDHL
 	ADC
 	SUB
 	SBC
+
 	AND
 	OR
 	XOR
 	CP
+
 	INC
 	DEC
 	CCF
 	SCF
-	RRA
-	RLA
-	RRCA
-	RRLA
+
 	CPL
 	BIT
 	RESET
 	SET
-	SRL
-	RR
+
 	RL
-	RRC
+	RLA
 	RLC
-	SRA
+	RLCA
+
+	RR
+	RRA
+	RRC
+	RRCA
+
+	SLL
 	SLA
+
+	SRA
+	SRL
+
 	SWAP
 )
 
 // remove the target field please and probably should hardcode the other operations because yeah uwu
-func (cpu *CPU) execute(instruction Instruction, target ArithmeticTarget) {
+func (cpu *CPU) execute(instruction Instruction, target ArithmeticTarget, args ...any) {
 	switch instruction {
 	case ADDHL:
 		{
@@ -87,14 +98,94 @@ func (cpu *CPU) execute(instruction Instruction, target ArithmeticTarget) {
 		{
 			cpu.scf()
 		}
-	case RRA:
+	case RL:
 		{
-			// here i should get the value with the funcitons instead of letting them do the calculations and setting up the value, is just too much for them to handle they will get tired
-			cpu.rotateRightThroughCarry(true, A)
+			cpu.rotateLeftThroughCarry(true, target)
 		}
 	case RLA:
 		{
 			cpu.rotateLeftThroughCarry(true, A)
+		}
+	case RLCA:
+		{
+			cpu.rotateLeft(true, A)
+		}
+	case RR:
+		{
+			cpu.rotateRightThroughCarry(true, target)
+		}
+	case RRA:
+		{
+			cpu.rotateRightThroughCarry(true, A)
+		}
+	case RLC:
+		{
+			cpu.rotateLeft(true, target)
+		}
+	case RRC:
+		{
+			cpu.rotateRight(true, target)
+		}
+	case RRCA:
+		{
+			cpu.rotateRight(true, A)
+		}
+	case SLL:
+		{
+			cpu.shiftLeftLogical(true, target)
+		}
+	case SLA:
+		{
+			cpu.shiftLeftArithmetic(true, target)
+		}
+	case SRA:
+		{
+			cpu.shiftRightArithmetic(true, target)
+		}
+	case SRL:
+		{
+			cpu.shiftRightLogical(true, target)
+		}
+	case CPL:
+		{
+			cpu.cpl()
+		}
+	case BIT:
+		{
+			if len(args) > 0 {
+				if n_bit, ok := args[0].(uint8); ok {
+					cpu.bit(n_bit, target)
+
+				} else {
+					fmt.Printf("should be an uint8 %v\n", args)
+				}
+			} else {
+				fmt.Println("expected which bit to check for BIT operation")
+			}
+		}
+	case RESET:
+		{
+			if len(args) > 0 {
+				if n_bit, ok := args[0].(uint8); ok {
+					cpu.reset(n_bit, target)
+				} else {
+					fmt.Printf("should be an uint8 %v\n", args)
+				}
+			} else {
+				fmt.Println("expected which bit to check for BIT operation")
+			}
+		}
+	case SET:
+		{
+			if len(args) > 0 {
+				if n_bit, ok := args[0].(uint8); ok {
+					cpu.set(n_bit, target)
+				} else {
+					fmt.Printf("should be an uint8 %v\n", args)
+				}
+			} else {
+				fmt.Println("expected which bit to check for BIT operation")
+			}
 		}
 	}
 }
@@ -284,6 +375,29 @@ func (cpu *CPU) scf() {
 	cpu.regs.f.carry = true
 }
 
+func (cpu *CPU) rotateLeft(set_zero bool, target ArithmeticTarget) {
+	// 1010101
+	register := cpu.getRegisterByTarget(target)
+	carry_bit := (*register & 0x80) >> 7
+	*register <<= 1
+	*register |= carry_bit
+	cpu.regs.f.zero = set_zero && *register == 0
+	cpu.regs.f.substract = false
+	cpu.regs.f.half_carry = false
+	cpu.regs.f.carry = carry_bit == 0b1
+}
+
+func (cpu *CPU) rotateRight(set_zero bool, target ArithmeticTarget) {
+	register := cpu.getRegisterByTarget(target)
+	carry_bit := (*register & 0b1) << 7
+	*register >>= 1
+	*register |= carry_bit
+	cpu.regs.f.zero = set_zero && *register == 0
+	cpu.regs.f.substract = false
+	cpu.regs.f.half_carry = false
+	cpu.regs.f.carry = carry_bit == 0x80
+}
+
 // shifts right the A register once
 // sets the 7nth bit of the A register to
 // the value in the carry flag
@@ -332,4 +446,103 @@ func (cpu *CPU) rotateLeftThroughCarry(set_zero bool, target ArithmeticTarget) {
 	// we check if the uppest bit is on in that case we turn on the
 	// carry flag
 	cpu.regs.f.carry = og_value&0x80 == 0x80
+}
+
+func (cpu *CPU) shiftLeftArithmetic(set_zero bool, target ArithmeticTarget) {
+	register := cpu.getRegisterByTarget(target)
+	og_value := *register
+	ari_bit := og_value & 0b1
+	*register <<= 1
+	if ari_bit == 0b1 {
+		*register |= ari_bit
+	}
+	cpu.regs.f.zero = set_zero && *register == 0
+	cpu.regs.f.substract = false
+	cpu.regs.f.half_carry = false
+	cpu.regs.f.carry = og_value&0x80 == 0x80
+}
+
+func (cpu *CPU) shiftRightArithmetic(set_zero bool, target ArithmeticTarget) {
+	register := cpu.getRegisterByTarget(target)
+	og_value := *register
+
+	ari_bit := og_value & 0x80
+	*register >>= 1
+
+	if ari_bit == 0x80 {
+		*register |= ari_bit
+	}
+
+	cpu.regs.f.zero = set_zero && *register == 0
+	cpu.regs.f.substract = false
+	cpu.regs.f.half_carry = false
+	cpu.regs.f.carry = og_value&0b1 == 0b1
+}
+
+func (cpu *CPU) shiftLeftLogical(set_zero bool, target ArithmeticTarget) {
+	register := cpu.getRegisterByTarget(target)
+	og_value := *register
+	*register <<= 1
+	cpu.regs.f.zero = set_zero && *register == 0
+	cpu.regs.f.substract = false
+	cpu.regs.f.half_carry = false
+	cpu.regs.f.carry = og_value&0x80 == 0x80
+}
+
+func (cpu *CPU) shiftRightLogical(set_zero bool, target ArithmeticTarget) {
+	register := cpu.getRegisterByTarget(target)
+	og_value := *register
+	*register >>= 1
+	cpu.regs.f.zero = set_zero && *register == 0
+	cpu.regs.f.substract = false
+	cpu.regs.f.half_carry = false
+	cpu.regs.f.carry = og_value&0b1 == 0b1
+}
+
+// invert the bits of the register A
+func (cpu *CPU) cpl() {
+	register := cpu.getRegisterByTarget(A)
+	*register = ^*register
+	cpu.regs.f.substract = true
+	cpu.regs.f.half_carry = true
+}
+
+// tests the n_bit in the target *register*
+// sets the zero flag if is not set
+// sets the half carry to 1 for some reason
+func (cpu *CPU) bit(n_bit uint8, target ArithmeticTarget) {
+	register := cpu.getRegisterByTarget(target)
+	bit_in_reg := *register >> reg(n_bit)
+	// 00010000
+	// 76543210
+	cpu.regs.f.substract = false
+	cpu.regs.f.half_carry = true
+	// if the bit is set to something (1)
+	// then we put false in the zero flag
+	if bit_in_reg&0b1 == 0b1 {
+		cpu.regs.f.zero = false
+	} else {
+		// else we put true because the bit is 0
+		cpu.regs.f.zero = true
+	}
+}
+
+// resets the n_bit in the target *register* to zero
+// we do not set any flags here because when we reset
+// we just wanna reset something, like a void function
+// we dont actually care about the result
+// but for the bit function for example we actually
+// wanna know wheter is on or not, and probably make an if
+// statement about that
+func (cpu *CPU) reset(n_bit uint8, target ArithmeticTarget) {
+	register := cpu.getRegisterByTarget(target)
+	bit_in_reg := ^(reg(0b1) << reg(n_bit))
+	*register &= bit_in_reg
+}
+
+// sets the n_bit in the target *register* to one
+func (cpu *CPU) set(n_bit uint8, target ArithmeticTarget) {
+	register := cpu.getRegisterByTarget(target)
+	bit_in_reg := (reg(0b1) << reg(n_bit))
+	*register |= bit_in_reg
 }
