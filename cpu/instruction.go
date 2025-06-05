@@ -339,6 +339,8 @@ func (cpu *CPU) xor(target ArithmeticTarget) {
 	cpu.regs.a = new_value
 }
 
+// compares the value in the target register to the one in the a register
+// substracting botht of them and updating the flags
 func (cpu *CPU) cmp(target ArithmeticTarget) {
 	value := cpu.getRegisterValueByTarget(target)
 	new_value, did_overflow := cpu.regs.a.overflowingSub(value)
